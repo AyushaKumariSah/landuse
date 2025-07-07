@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Land Use and Land Classification Visualization</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css"
+    />
+
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      #contentContainer {
+        height: calc(100vh - 56px);
+        position: relative;
+        overflow: auto;
+      }
+      #map {
+        height: 100%;
+        width: 100%;
+      }
+      .hero {
+        background: linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.3)),
+          url("https://i.etsystatic.com/6104118/r/il/6502d9/2790096600/il_570xN.2790096600_5zir.jpg")
+            center/cover no-repeat fixed;
+        color: white;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        padding: 0 15px;
+        background-size: cover;
+        background-position: center;
+      }
+      .page-background {
+        background: linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.3)),
+          url("https://i.etsystatic.com/6104118/r/il/6502d9/2790096600/il_570xN.2790096600_5zir.jpg")
+            center/cover no-repeat fixed;
+        color: white;
+        min-height: calc(100vh - 56px);
+        padding: 2rem 0;
+        background-size: cover;
+        background-position: center;
+      }
+      .hero h1 {
+        font-size: 3rem;
+        font-weight: bold;
+        animation: fadeInDown 1s ease-out;
+      }
+      .hero p {
+        font-size: 1.25rem;
+        margin-top: 1rem;
+        animation: fadeInUp 1s ease-out;
+        max-width: 700px;
+      }
+      .hero .btn {
+        margin-top: 2rem;
+        animation: fadeIn 2s ease-out;
+      }
+      @keyframes fadeInDown {
+        from {
+          opacity: 0;
+          transform: translateY(-50px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      @keyframes fadeInUp {
+        from {
+          opacity: 0;
+          transform: translateY(50px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      .doc-section {
+        margin-bottom: 2rem;
+        padding: 1.5rem;
+        background: #f8f9fa;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        color: #333;
+      }
+      .doc-section h4 {
+        color: #0d6efd;
+        border-bottom: 2px solid #0d6efd;
+        display: inline-block;
+        padding-bottom: 5px;
+        margin-bottom: 15px;
+        font-size: 1.5rem;
+        font-weight: 600;
+      }
+      .doc-header {
+        background: linear-gradient(90deg, #0d6efd, #6610f2);
+        color: white;
+        padding: 2rem;
+        border-radius: 8px 8px 0 0;
+        text-align: center;
+        margin-bottom: 2rem;
+      }
+      .doc-header h2 {
+        font-size: 2.25rem;
+        font-weight: 700;
+      }
+      .doc-container {
+        background: #fff;
+        padding: 2rem;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        margin-bottom: 2rem;
+      }
+      .sidebar {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        z-index: 1000;
+        width: 280px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
+        transition: transform 0.3s ease-in-out;
+        max-height: 95vh;
+        overflow-y: auto;
+      }
+      .sidebar-header {
+        cursor: pointer;
+        background: #0d6efd;
+        color: white;
+        padding: 0.75rem 1rem;
+        border-top-left-radius: 8px;
+        border-top-right-radius: 8px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        user-select: none;
+      }
+      .sidebar-body {
+        padding: 1rem;
+      }
+      .sidebar h6 {
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+        color: #0d6efd;
+      }
+      .menu-group {
+        margin-bottom: 1rem;
+      }
+      .legend {
+        background: white;
+        padding: 8px;
+        border-radius: 8px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+        line-height: 1.4;
+      }
+      .legend-item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 4px;
+      }
+      .legend-color {
+        width: 18px;
+        height: 10px;
+        margin-right: 8px;
+        border: 1px solid #aaa;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Top navbar -->
+    <nav class="navbar navbar-dark bg-primary">
+      <div class="container-fluid d-flex justify-content-between">
+        <a class="navbar-brand" href="#" onclick="showHome()">LandUseApp</a>
+        <div>
+          <button class="btn btn-primary me-2" onclick="showHome()">
+            Home
+          </button>
+          <button class="btn btn-primary me-2" onclick="showFeatures()">
+            Features
+          </button>
+          <button class="btn btn-primary me-2" onclick="showAbout()">
+            About
+          </button>
+          <button class="btn btn-primary me-2" onclick="showDocs()">
+            Documentation
+          </button>
+          <button class="btn btn-primary" onclick="showContacts()">
+            Contact
+          </button>
+          <button class="btn btn-light" onclick="window.print()">
+            <i class="bi bi-printer"></i> Print Map
+          </button>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Dynamic content container -->
+    <div id="contentContainer"></div>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+      const container = document.getElementById("contentContainer");
+      let geojsonLayer,
+        adminLayers = {};
+      showHome(); // Default page on load
+
+      function showHome() {
+        container.innerHTML = `
+        <div class="hero">
+          <h1>Land Use & Classification Dashboard</h1>
+          <p>Empowering planners, researchers, and development professionals with interactive land use visualization for Nepal's sustainable future.</p>
+          <button class="btn btn-light btn-lg" onclick="showFeatures()"><i class="bi bi-play-fill"></i> Get Started</button>
+        </div>`;
+      }
+
+      function showAbout() {
+        container.innerHTML = `
+        <div class="hero">
+          <div class="container p-4 text-center text-white">
+            <h2>Our Team</h2>
+            <div class="row justify-content-center">
+              <div class="col-md-6 mb-4">
+                <img src="Ayusha_photo1.jpg" class="rounded-circle mb-3" style="width:150px">
+                <p><strong>Ayusha Kumari Sah</strong></p>
+                <p>Geomatics Engineering Student who created this web application, integrating interactive mapping, data processing, and land use analysis features to make the tool comprehensive and practical for planners and researchers.</p>
+              </div>
+              <div class="col-md-6 mb-4">
+                <img src="Nabin_Photo.jpg" class="rounded-circle mb-3" style="width:150px">
+                <p><strong>Nabin Ray</strong></p>
+                <p>Geomatics Engineering Student who contributed to the design and user experience of the web application, ensuring clear navigation and effective visualization of Nepal’s land use data.</p>
+              </div>
+            </div>
+          </div>
+        </div>`;
+      }
+
+      function showDocs() {
+        container.innerHTML = `
+        <div class="page-background">
+  <div class="container p-4">
+    <div class="doc-header">
+      <h2><i class="bi bi-book me-2"></i>User Guide & Documentation</h2>
+    </div>
+    <div class="doc-container">
+
+      <div class="doc-section">
+        <h4><i class="bi bi-flag me-2"></i>About the App</h4>
+        <p>This web application is an interactive platform for visualizing, filtering, and analyzing land use data in Nepal. Designed for planners, researchers, students, and NGOs, it helps make data-driven decisions for sustainable development by providing powerful mapping, filtering, and analysis tools.</p>
+      </div>
+
+      <div class="doc-section">
+        <h4><i class="bi bi-lightbulb me-2"></i>Key Features</h4>
+        <ul>
+          <li><strong>Interactive Map:</strong> Navigate and explore land use data with a responsive Leaflet-based map interface.</li>
+          <li><strong>Land Use Layers:</strong> Load, filter, and visualize key land categories (forest, residential, park) directly from the sidebar.</li>
+          <li><strong>Area Calculations:</strong> Calculate and display total area and feature counts for each land use type on demand.</li>
+          <li><strong>Upload GeoJSON:</strong> Add your own spatial datasets in GeoJSON format to analyze or visualize them on the map.</li>
+          <li><strong>Administrative Boundaries:</strong> Toggle local, district, and provincial boundaries for additional geographic context.</li>
+          <li><strong>Advanced Query:</strong> Search features by their properties (e.g., <code>owner=government</code>) using custom queries.</li>
+          <li><strong>Statistics Chart:</strong> View live land use distributions with a dynamic pie chart showing feature counts and percentages.</li>
+        </ul>
+      </div>
+
+      <div class="doc-section">
+        <h4><i class="bi bi-play-circle me-2"></i>Getting Started</h4>
+        <ol>
+          <li>Open the application in your web browser by navigating to your deployed URL or directly opening <code>index.html</code>.</li>
+          <li>Use the <strong>navigation bar</strong> at the top to switch between Home, Features, About, Documentation, and Contact pages.</li>
+          <li>On the <strong>Features</strong> page, you can:
+            <ul>
+              <li><strong>Upload GeoJSON:</strong> Click <em>Upload</em> to add custom datasets.</li>
+              <li><strong>Filter Land Use:</strong> Use the buttons to highlight forests, residential areas, or parks individually.</li>
+              <li><strong>Calculate Area:</strong> Click area buttons to calculate area in hectares for selected categories.</li>
+              <li><strong>Toggle Boundaries:</strong> Enable overlays for local, district, or province boundaries as needed.</li>
+              <li><strong>Advanced Query:</strong> Enter queries like <code>owner=community</code> to search specific features.</li>
+            </ul>
+          </li>
+        </ol>
+      </div>
+
+      <div class="doc-section">
+        <h4><i class="bi bi-gear me-2"></i>Map Controls & Legends</h4>
+        <p>The map includes:
+          <ul>
+            <li><strong>Basemaps:</strong> Switch between OpenStreetMap, Esri Satellite, and CartoDB Dark basemaps from the layer control.</li>
+            <li><strong>Geocoder:</strong> Use the search tool on the map to locate places by name.</li>
+            <li><strong>Dynamic Legend:</strong> Automatically updates to show the active land use types with color indicators.</li>
+          </ul>
+        </p>
+      </div>
+
+      <div class="doc-section">
+        <h4><i class="bi bi-bar-chart-line me-2"></i>Statistics</h4>
+        <p>The statistics panel shows a live pie chart of land use distribution based on the currently loaded or filtered data. Hover over slices to see the count and percentage of each land type. This helps you quickly assess the composition of your dataset.</p>
+      </div>
+
+      <div class="doc-section">
+        <h4><i class="bi bi-question-circle me-2"></i>Advanced Query Guide</h4>
+        <p>Use the <strong>Advanced Query</strong> section to filter data by any property in your GeoJSON. Format your queries as <code>property=value</code>, e.g.:</p>
+        <ul>
+          <li><code>owner=government</code> — show features with an owner property of "government".</li>
+          <li><code>status=active</code> — show features with a status of "active".</li>
+        </ul>
+        <p>If your query returns results, they will be displayed on the map, and the statistics will update accordingly. If not, you will receive an alert indicating no matches found.</p>
+      </div>
+
+      <div class="doc-section">
+        <h4><i class="bi bi-people-fill me-2"></i>Intended Users</h4>
+        <p>This application is designed for:
+          <ul>
+            <li><strong>Urban & Regional Planners:</strong> Analyze land use patterns to support planning decisions.</li>
+            <li><strong>Researchers & Students:</strong> Study spatial distributions for academic projects or reports.</li>
+            <li><strong>Government Agencies:</strong> Monitor and manage land resources efficiently.</li>
+            <li><strong>NGOs & Environmental Organizations:</strong> Evaluate land classifications for conservation or advocacy purposes.</li>
+          </ul>
+        </p>
+      </div>
+
+      <div class="doc-section">
+        <h4><i class="bi bi-wrench-adjustable me-2"></i>Customization & Support</h4>
+        <p>This app is built with a modular architecture. To customize it for your specific needs, you can:</p>
+        <ul>
+          <li>Modify backend APIs to add new land use categories or attributes.</li>
+          <li>Change the front-end JavaScript to support additional filters or calculations.</li>
+          <li>Replace or expand GeoJSON datasets to reflect updated or regional land use data.</li>
+        </ul>
+        <p>For technical support or further customization inquiries, please reach out via the <strong>Contact</strong> page.</p>
+      </div>
+
+    </div>
+  </div>
+</div>`
+      }
+
+      function showContacts() {
+        container.innerHTML = `
+        <div class="hero">
+          <div class="container p-4 text-center text-white">
+            <h2>Contact Information</h2>
+            <div class="row justify-content-center">
+          <div class="col-md-6 mb-4">
+    <p><strong>Ayusha Kumari Sah</strong></p>
+    <p>
+      <strong>Email:</strong> <a href="mailto:aayushas937@gmail.com" class="text-white">aayushas937@gmail.com</a><br>
+      <strong>LinkedIn:</strong> <a href="https://www.linkedin.com/in/ayusha-sah-60903832a/" target="_blank" class="text-white text-decoration-underline">Profile</a>
+    </p>
+     </div>
+          <div class="col-md-6 mb-4">
+    <p><strong>Nabin Ray</strong></p>
+    <p>
+      <strong>Email:</strong> <a href="mailto:raynabin43@gmail.com" class="text-white">raynabin43@gmail.com</a><br>
+      <strong>LinkedIn:</strong> <a href="https://www.linkedin.com/in/nabin-ray-563761363/" target="_blank" class="text-white text-decoration-underline">Profile</a>
+    </p>
+    </div>
+        </div>
+  </div>
+</div>`;
+      }
+
+      function showFeatures() {
+        container.innerHTML = `
+    <div id="map"></div>
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-header" onclick="toggleSidebar()">
+        <span><i class="bi bi-list"></i> Controls</span>
+        <i class="bi bi-chevron-left" id="toggleIcon"></i>
+      </div>
+      <div class="sidebar-body">
+        <h6>Upload GeoJSON</h6>
+        <div class="menu-group">
+          <input class="form-control form-control-sm mb-2" type="file" id="uploadFile" accept=".geojson" />
+          <button class="btn btn-secondary btn-sm w-100" onclick="uploadGeoJSON()"><i class="bi bi-upload"></i> Upload</button>
+        </div>
+        <h6>Land Use</h6>
+        <div class="menu-group d-grid gap-2">
+          <button class="btn btn-primary btn-sm" onclick="loadLanduse()"><i class="bi bi-globe"></i> Show All Land Use</button>
+        </div>
+        <h6>Filter Land Use</h6>
+<div class="menu-group d-grid gap-2">
+  <button class="btn btn-secondary btn-sm landuse-btn" onclick="filterLanduse('forest', this)">
+    <i class="bi bi-tree-fill"></i> Forest
+  </button>
+  <button class="btn btn-secondary btn-sm landuse-btn" onclick="filterLanduse('residential', this)">
+    <i class="bi bi-house-door-fill"></i> Residential
+  </button>
+  <button class="btn btn-secondary btn-sm landuse-btn" onclick="filterLanduse('park', this)">
+    <i class="bi bi-tree"></i> Park
+  </button>
+</div>
+
+<h6>Area Calculations</h6>
+<div class="menu-group d-grid gap-2">
+  <button class="btn btn-secondary btn-sm area-btn" onclick="showArea('forest', this)">
+    <i class="bi bi-calculator"></i> Forest Area
+  </button>
+  <button class="btn btn-secondary btn-sm area-btn" onclick="showArea('residential', this)">
+    <i class="bi bi-calculator"></i> Residential Area
+  </button>
+  <button class="btn btn-secondary btn-sm area-btn" onclick="showArea('park', this)">
+    <i class="bi bi-calculator"></i> Park Area
+  </button>
+</div>
+
+
+        <h6>Admin Boundaries</h6>
+        <div class="menu-group">
+          <div class="form-check d-flex align-items-center mb-2">
+            <input class="form-check-input me-2" type="checkbox" id="toggleLocal" onchange="toggleOverlay('local')">
+            <label class="form-check-label flex-grow-1" for="toggleLocal">Local Level</label>
+            <span class="legend-color" style="background:#1abc9c"></span>
+          </div>
+          <div class="form-check d-flex align-items-center mb-2">
+            <input class="form-check-input me-2" type="checkbox" id="toggleDistrict" onchange="toggleOverlay('district')">
+            <label class="form-check-label flex-grow-1" for="toggleDistrict">District</label>
+            <span class="legend-color" style="background:#e67e22"></span>
+          </div>
+          <div class="form-check d-flex align-items-center mb-2">
+            <input class="form-check-input me-2" type="checkbox" id="toggleProvince" onchange="toggleOverlay('province')">
+            <label class="form-check-label flex-grow-1" for="toggleProvince">Province</label>
+            <span class="legend-color" style="background:#9b59b6"></span>
+          </div>
+        </div>
+        <h6>Advanced Query</h6>
+        <div class="menu-group d-grid gap-2">
+          <input type="text" id="queryInput" placeholder="e.g. owner=government" class="form-control form-control-sm mb-2"/>
+          <button class="btn btn-dark btn-sm" onclick="advancedQuery()"><i class="bi bi-search"></i> Search</button>
+        </div>
+        <h6>Statistics</h6>
+        <canvas id="landuseChart" height="150"></canvas>
+      </div>
+    </div>`;
+        setTimeout(initMap, 0);
+      }
+
+      let map;
+      function initMap() {
+        map = L.map("map").setView([28.4, 84.1], 9);
+        map.zoomControl.setPosition("bottomright");
+
+        const osm = L.tileLayer(
+          "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+          { attribution: "© OpenStreetMap" }
+        ).addTo(map);
+        const esri = L.tileLayer(
+          "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+          { attribution: "Tiles © Esri" }
+        );
+        const dark = L.tileLayer(
+          "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+          { attribution: "© CartoDB" }
+        );
+        L.control
+          .layers(
+            {
+              OpenStreetMap: osm,
+              "Esri World Imagery": esri,
+              "CartoDB DarkMatter": dark,
+            },
+            {}
+          )
+          .addTo(map);
+
+        L.Control.geocoder().addTo(map);
+
+        // Dynamic legend
+        const legend = L.control({ position: "bottomright" });
+        legend.onAdd = function () {
+          const div = L.DomUtil.create("div", "legend");
+          div.innerHTML =
+            "<strong>Legend</strong><div id='legendContent'></div>";
+          return div;
+        };
+        legend.addTo(map);
+        updateLegend([]);
+
+        map.on("layeradd layerremove", updateMapLegend);
+
+        // Initialize Chart.js
+        const ctx = document.getElementById("landuseChart").getContext("2d");
+        chart = new Chart(ctx, {
+          type: "pie",
+          data: { labels: [], datasets: [{ data: [], backgroundColor: [] }] },
+          options: {
+            plugins: {
+              legend: { position: "bottom" },
+              tooltip: {
+                callbacks: {
+                  label: function (context) {
+                    const label = context.label || "";
+                    const count = context.parsed;
+                    const total = context.chart._metasets[0].total;
+                    const percentage = ((count / total) * 100).toFixed(1);
+                    return `${label}: ${count} features (${percentage}%)`;
+                  },
+                },
+              },
+            },
+          },
+        });
+      }
+
+      function updateMapLegend() {
+        const layers = [];
+        map.eachLayer((layer) => {
+          if (
+            layer.feature &&
+            layer.feature.properties &&
+            layer.feature.properties.type
+          ) {
+            layers.push(layer.feature.properties.type);
+          }
+        });
+        const unique = [...new Set(layers)];
+        updateLegend(unique);
+      }
+
+      function updateLegend(types) {
+        const legend = document.getElementById("legendContent");
+        legend.innerHTML = "";
+        types.forEach((type) => {
+          const color = styleByType({ properties: { type } }).fillColor;
+          legend.innerHTML += `<div class='legend-item'><div class='legend-color' style='background:${color}'></div>${type}</div>`;
+        });
+      }
+
+      function toggleSidebar() {
+        const sidebarBody = document.querySelector(".sidebar-body");
+        const isHidden = sidebarBody.style.display === "none";
+        sidebarBody.style.display = isHidden ? "block" : "none";
+        document
+          .getElementById("toggleIcon")
+          .classList.toggle("bi-chevron-left", !isHidden);
+        document
+          .getElementById("toggleIcon")
+          .classList.toggle("bi-chevron-right", isHidden);
+      }
+      function clearGeojson() {
+        if (geojsonLayer) {
+          map.removeLayer(geojsonLayer);
+        }
+      }
+
+      // Helper for color by type
+      function styleByType(feature) {
+  let fillColor = "#3388ff";
+  let color = "#000"; // Default black outline
+  let weight = 3;     // Default line thickness
+
+  if (feature.properties && feature.properties.type) {
+    const type = feature.properties.type.toLowerCase();
+
+    if (type === "forest") {
+      fillColor = "#00e676"; // bright green fill
+      color = "#006400";     // dark green border
+      weight = 6;            // thick border
+    } else if (type === "residential") {
+      fillColor = "#ff1744"; // bright red fill
+      color = "#8b0000";     // dark red border
+      weight = 6;            // thick border
+    } else if (type === "park") {
+      fillColor = "#ffea00"; // bright yellow fill
+      color = "#ff8c00";     // dark orange border
+      weight = 10;            // thick border
+    }
+  }
+
+  return {
+    color,           // customized border color
+    fillColor,       // fill color
+    weight,          // customized border thickness
+    fillOpacity: 0.7 // solid fill
+  };
+}
+
+
+      async function loadLanduse() {
+        clearGeojson();
+        const res = await fetch("/api/land_use");
+        const data = await res.json();
+        geojsonLayer = L.geoJSON(data, { style: styleByType }).addTo(map);
+        map.fitBounds(geojsonLayer.getBounds());
+        updateStatistics(data);
+      }
+
+      async function filterLanduse(type, btnElement) {
+        // Set clicked button to red
+        btnElement.classList.remove("btn-secondary");
+        btnElement.classList.add("btn-danger");
+
+        clearGeojson();
+        const res = await fetch(`/api/filter/${type}`);
+        if (res.ok) {
+          const data = await res.json();
+          geojsonLayer = L.geoJSON(data, { style: styleByType }).addTo(map);
+          map.fitBounds(geojsonLayer.getBounds());
+          updateStatistics(data);
+        } else {
+          alert(`No features found for ${type}`);
+        }
+
+        // Reset button back to neutral after work finishes
+        btnElement.classList.remove("btn-danger");
+        btnElement.classList.add("btn-secondary");
+      }
+
+      async function showArea(type, btnElement) {
+        // Set clicked button to red
+        btnElement.classList.remove("btn-secondary");
+        btnElement.classList.add("btn-danger");
+
+        const res = await fetch(`/api/area/${type}`);
+        if (res.ok) {
+          const data = await res.json();
+          alert(
+            `Type: ${data.type}\nCount: ${
+              data.featureCount
+            }\nArea: ${data.totalAreaHectares.toFixed(2)} hectares`
+          );
+        } else {
+          const err = await res.json();
+          alert(err.error);
+        }
+
+        // Reset button back to neutral after work finishes
+        btnElement.classList.remove("btn-danger");
+        btnElement.classList.add("btn-secondary");
+      }
+
+      async function toggleOverlay(level) {
+        const checkbox = document.getElementById(`toggle${capitalize(level)}`);
+        if (checkbox.checked) {
+          try {
+            const res = await fetch(`/api/${level}`);
+            if (!res.ok) throw new Error(`Failed to fetch ${level} data`);
+            const data = await res.json();
+            adminLayers[level] = L.geoJSON(data, {
+              style: { color: levelColor(level), weight: 2, fill: false },
+            }).addTo(map);
+            // Fit bounds if possible
+            try {
+              map.fitBounds(adminLayers[level].getBounds());
+            } catch (e) {
+              alert(
+                `Loaded ${level} boundary, but it has invalid or empty geometry.`
+              );
+            }
+          } catch (err) {
+            alert(`Error loading ${level} boundaries: ${err.message}`);
+            checkbox.checked = false;
+          }
+        } else if (adminLayers[level]) {
+          map.removeLayer(adminLayers[level]);
+          delete adminLayers[level];
+        }
+      }
+
+      async function uploadGeoJSON() {
+        const file = document.getElementById("uploadFile").files[0];
+        if (!file) return alert("Please select a file!");
+        if (!file.name.endsWith(".geojson")) {
+          alert("Please select a valid .geojson file!");
+          return;
+        }
+        const formData = new FormData();
+        formData.append("geojson", file);
+        const res = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+        });
+        const data = await res.json();
+        if (res.ok) {
+          alert(data.message);
+          loadLanduse();
+        } else {
+          alert(`Upload failed: ${data.error}`);
+        }
+      }
+
+      function levelColor(level) {
+        return level === "local"
+          ? "#1abc9c"
+          : level === "district"
+          ? "#e67e22"
+          : "#9b59b6";
+      }
+
+      function capitalize(str) {
+        return str.charAt(0).toUpperCase() + str.slice(1);
+      }
+
+      function getTypes(data) {
+        const types = {};
+        data.features.forEach((f) => {
+          if (f.properties && f.properties.type) {
+            const t = f.properties.type;
+            types[t] = (types[t] || 0) + 1;
+          }
+        });
+        return Object.keys(types);
+      }
+
+      function updateStatistics(data) {
+        const stats = {};
+        let total = 0;
+
+        // Count the features by type
+        data.features.forEach((f) => {
+          if (f.properties && f.properties.type) {
+            const t = f.properties.type;
+            stats[t] = (stats[t] || 0) + 1;
+            total += 1;
+          }
+        });
+
+        const labels = Object.keys(stats);
+        const counts = labels.map((l) => stats[l]);
+        const percentages = counts.map((c) => ((c / total) * 100).toFixed(1)); // e.g. 42.3%
+
+        // Update labels with percentages, e.g., "Forest (35.0%)"
+        const labelsWithPercentages = labels.map(
+          (l, i) => `${l} (${percentages[i]}%)`
+        );
+
+        const colors = labels.map(
+          (l) => styleByType({ properties: { type: l } }).fillColor
+        );
+
+        chart.data.labels = labelsWithPercentages;
+        chart.data.datasets[0].data = counts;
+        chart.data.datasets[0].backgroundColor = colors;
+
+        chart.update();
+      }
+
+      function advancedQuery() {
+        const query = document.getElementById("queryInput").value.trim();
+        if (!query.includes("=")) return alert("Use format: property=value");
+        const [prop, val] = query.split("=");
+        clearGeojson();
+        fetch("/api/land_use")
+          .then((res) => res.json())
+          .then((data) => {
+            const filtered = data.features.filter(
+              (f) =>
+                f.properties &&
+                String(f.properties[prop])
+                  .toLowerCase()
+                  .includes(val.toLowerCase())
+            );
+
+            if (filtered.length === 0)
+              return alert("No matching features found!");
+            geojsonLayer = L.geoJSON(
+              { type: "FeatureCollection", features: filtered },
+              { style: styleByType }
+            ).addTo(map);
+            map.fitBounds(geojsonLayer.getBounds());
+            updateStatistics({ features: filtered });
+            updateLegend(getTypes({ features: filtered }));
+          })
+          .catch(() => alert("Failed to fetch land use data"));
+      }
+
+      // ✅ Add this BELOW your last function, before
+      document.addEventListener("click", (e) => {
+        // Filter Land Use buttons
+        if (e.target.classList.contains("landuse-btn")) {
+          document.querySelectorAll(".landuse-btn").forEach((btn) => {
+            btn.classList.remove("btn-danger");
+            btn.classList.add("btn-secondary");
+          });
+          e.target.classList.remove("btn-secondary");
+          e.target.classList.add("btn-danger");
+        }
+
+        // Area Calculations buttons
+        if (e.target.classList.contains("area-btn")) {
+          document.querySelectorAll(".area-btn").forEach((btn) => {
+            btn.classList.remove("btn-danger");
+            btn.classList.add("btn-secondary");
+          });
+          e.target.classList.remove("btn-secondary");
+          e.target.classList.add("btn-danger");
+        }
+      });
+    </script>
+  </body>
+</html>

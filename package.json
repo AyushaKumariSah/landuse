@@ -1,0 +1,13 @@
+{
+  "name": "landuse-app",
+  "version": "1.0.0",
+  "main": "backend/server.js",
+  "license": "MIT",
+  "dependencies": {
+    "@turf/turf": "^7.2.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "multer": "^2.0.1",
+    "pg": "^8.16.3"
+  }
+}
